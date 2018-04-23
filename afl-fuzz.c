@@ -83,6 +83,7 @@ static u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
            use_splicing,              /* Recombine input files?           */
            dumb_mode,                 /* Run in non-instrumented mode?    */
+           manual_instrumentation_mode = 0, /* Run in manual instrumentation mode */
            score_changed,             /* Scoring for favorites changed?   */
            kill_signal,               /* Signal that killed the child     */
            resuming_fuzz,             /* Resuming an older fuzzing job?   */
@@ -1059,7 +1060,8 @@ static inline void classify_counts(u32* mem) {
 
 static void remove_shm(void) {
 
-  shmctl(shm_id, IPC_RMID, NULL);
+  if(! manual_instrumentation_mode)
+    shmctl(shm_id, IPC_RMID, NULL);
 
 }
 
@@ -1207,7 +1209,10 @@ static void setup_shm(void) {
   memset(virgin_hang, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  if( manual_instrumentation_mode && ( shm_str = getenv(SHM_ENV_VAR) ) != 0 )
+    shm_id = shmget( (key_t)atoi(shm_str), MAP_SIZE, IPC_EXCL | 0600 );  // find by key
+  else
+    shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600); // create by key
 
   if (shm_id < 0) PFATAL("shmget() failed");
 
@@ -2422,7 +2427,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
 
     if (stop_soon || fault != crash_mode) goto abort_calibration;
 
-    if (!dumb_mode && !stage_cur && !count_bytes(trace_bits)) {
+    if (!dumb_mode && !stage_cur && !count_bytes(trace_bits) && !manual_instrumentation_mode) {  // check instrumentation
       fault = FAULT_NOINST;
       goto abort_calibration;
     }
@@ -6549,7 +6554,7 @@ static void check_binary(u8* fname) {
 
   }
 
-  if (getenv("AFL_SKIP_BIN_CHECK")) return;
+  if (getenv("AFL_SKIP_BIN_CHECK") || manual_instrumentation_mode) return;
 
   /* Check for blatant user errors. */
 
@@ -6759,6 +6764,7 @@ static void usage(u8* argv0) {
 
        "  -d            - quick & dirty mode (skips deterministic steps)\n"
        "  -n            - fuzz without instrumentation (dumb mode)\n"
+       "  -N            - fuzz with manual instrumentation (network mode)\n"
        "  -x dir        - optional fuzzer dictionary (see README)\n\n"
 
        "Other stuff:\n\n"
@@ -7382,7 +7388,7 @@ int main(int argc, char** argv) {
 
   doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
 
-  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
+  while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnNCB:S:M:x:Q")) > 0)
 
     switch (opt) {
 
@@ -7530,6 +7536,10 @@ int main(int argc, char** argv) {
 
         if (!mem_limit_given) mem_limit = MEM_LIMIT_QEMU;
 
+        break;
+
+      case 'N':
+        manual_instrumentation_mode = 1;
         break;
 
       default:

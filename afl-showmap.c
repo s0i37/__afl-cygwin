@@ -129,7 +129,10 @@ static void setup_shm(void) {
 
   u8* shm_str;
 
-  shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
+  if( ( shm_str = getenv(SHM_ENV_VAR) ) != 0 )
+    shm_id = shmget( (key_t)atoi(shm_str), MAP_SIZE, IPC_EXCL | 0600 );  // find by key
+  else
+    shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600); // create by key
 
   if (shm_id < 0) PFATAL("shmget() failed");
 

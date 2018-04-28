@@ -43,13 +43,15 @@ void sync_exit()
 		make_crach();
 }
 
+char state1[100];
+
 void main(int argc, char **argv)
 {
 	FILE *f;
 	int port;
 	char *input_file;
 	char input[1024];
-	char outbuf[16];
+	char outbuf[21];
 	WSADATA wsaData;
 	int s;
 	struct sockaddr_in target;
@@ -60,7 +62,11 @@ void main(int argc, char **argv)
 	port = atoi( argv[1] );
 	input_file = argv[2];
 
-	f = fopen( argv[2], "rb" );
+	//f = fopen( "in\\input3", "rb" );
+	//fread(state1, 100, 1, f);
+	//fclose(f);
+
+	f = fopen( input_file, "rb" );
 	if(!f)
 		return;
 	fread(input, 1024, 1, f);
@@ -74,12 +80,8 @@ void main(int argc, char **argv)
 	target.sin_port = htons(port);
 	connect( s, (struct sockaddr *)&target, sizeof(target) );
 
-	send(s, "qtate0", 6, 0);
-	recv(s, outbuf, sizeof(outbuf), 0);
-	send(s, "wtate1", 6, 0);
-	recv(s, outbuf, sizeof(outbuf), 0);
-	send(s, "etate2", 6, 0);
-	recv(s, outbuf, sizeof(outbuf), 0);
+	//send(s, state1, 59, 0);
+	//recv(s, outbuf, 21, 0);
 
 	sync_entry();
 
